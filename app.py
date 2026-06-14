@@ -5,12 +5,10 @@ import random
 
 app = Flask(__name__)
 
-API_KEY = os.getenv("API_KEY")
+# ⚠️ API KEY BURAYA
+API_KEY = "BURAYA_API_KEYİNİ_YAPISTIR"
 
 
-# -----------------------------
-# 🧠 ORAN MOTORU (SAFE)
-# -----------------------------
 def predict_match():
     home_strength = random.randint(40, 100)
     away_strength = random.randint(40, 100)
@@ -27,12 +25,9 @@ def predict_match():
 def odds(p):
     if p <= 0:
         return 0
-    return round((1 / p) * 1.07, 2)  # margin
+    return round((1 / p) * 1.07, 2)
 
 
-# -----------------------------
-# 🧠 ANALİZ (SAFE)
-# -----------------------------
 def analyze(home, away):
     hw, dr, aw = predict_match()
 
@@ -60,15 +55,8 @@ def analyze(home, away):
     }
 
 
-# -----------------------------
-# 🚀 ANA SAYFA (ULTRA SAFE)
-# -----------------------------
 @app.route("/")
 def home():
-
-    # API KEY kontrol
-    if not API_KEY:
-        return "<h1>⚠️ API KEY bulunamadı (Render environment variables kontrol et)</h1>"
 
     headers = {
         "x-rapidapi-host": "v3.football.api-sports.io",
@@ -86,12 +74,8 @@ def home():
         data = r.json()
         matches = data.get("response", [])
 
-        # 🧨 BOŞ VERİ KORUMASI
         if not matches:
-            return """
-            <h1>⚠️ Veri Yok</h1>
-            <p>API şu anda maç döndürmedi.</p>
-            """
+            return "<h1>⚠️ Maç verisi yok</h1>"
 
         analyzed = []
 
@@ -101,66 +85,38 @@ def home():
                 away = m["teams"]["away"]["name"]
                 analyzed.append(analyze(home, away))
             except:
-                continue  # tek maç bozuksa sistemi çökertme
+                continue
 
-        # 🧨 analiz boşsa
         if not analyzed:
-            return "<h1>⚠️ Maçlar analiz edilemedi</h1>"
+            return "<h1>⚠️ Analiz üretilemedi</h1>"
 
-        # -----------------------------
-        # 📊 FİLTRELER (SAFE)
-        # -----------------------------
-        single = analyzed[:10]
-        double = analyzed[:2]
-        triple = analyzed[:3]
-        quad = analyzed[:4]
-
-        high_odds = sorted(analyzed, key=lambda x: x["home_odds"], reverse=True)[:10]
-        winners = [m for m in analyzed if m["confidence"] > 60]
-        losers = [m for m in analyzed if m["confidence"] < 50]
-
-        top_win = max(analyzed, key=lambda x: x["confidence"]) if analyzed else None
-
-        # -----------------------------
-        # 🧾 HTML RENDER
-        # -----------------------------
-        html = "<h1>⚽ BETAI - SAĞLAM SİSTEM</h1><hr>"
+        html = "<h1>⚽ BETAI SAĞLAM SİSTEM</h1><hr>"
 
         def render(title, data):
             out = f"<h2>{title}</h2>"
             for m in data:
                 out += f"""
-                <div style="margin-bottom:15px;">
+                <div>
                     <b>{m['home']} vs {m['away']}</b><br>
                     📊 %{m['home_p']} | %{m['draw_p']} | %{m['away_p']}<br>
                     🎯 {m['winner']} (%{m['confidence']})<br>
                     💰 {m['home_odds']} / {m['draw_odds']} / {m['away_odds']}
-                </div>
-                <hr>
+                </div><hr>
                 """
             return out
 
-        html += render("🎯 Tekli Kupon", single)
-        html += render("🎯🎯 İkili Kupon", double)
-        html += render("🎯🎯🎯 Üçlü Kupon", triple)
-        html += render("🎯🎯🎯🎯 Dörtlü Kupon", quad)
+        html += render("🎯 Tekli", analyzed[:10])
+        html += render("🎯🎯 İkili", analyzed[:2])
+        html += render("🎯🎯🎯 Üçlü", analyzed[:3])
 
-        html += render("📈 Yüksek Oranlı", high_odds)
-        html += render("🏆 Kazananlar", winners)
-        html += render("❌ Kaybedenler", losers)
-
-        if top_win:
-            html += render("💣 En Güçlü Maç", [top_win])
+        top = max(analyzed, key=lambda x: x["confidence"])
+        html += render("💣 En Güçlü", [top])
 
         return html
 
-    except requests.exceptions.RequestException:
-        return "<h1>⚠️ API Bağlantı Hatası</h1>"
-
     except Exception as e:
-        return f"<h1>⚠️ Sistem Hatası</h1><p>{e}</p>"
+        return f"Hata: {e}"
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
