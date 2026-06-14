@@ -3,57 +3,69 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# Günlük Veri Yapısı (Burayı her gün güncelleyebilirsin)
-gunluk_veriler = {
+# Günlük Yönetim Paneli - Burayı güncellemen yeterli
+DATA = {
     "tarih": datetime.now().strftime('%d.%m.%Y'),
-    "tekli": [{"mac": "Galatasaray - Fenerbahçe", "tahmin": "MS 1", "oran": 1.95}],
-    "ikili": [{"kupon": "Arsenal - Liverpool & Bayern - Dortmund", "oran": 3.45}],
-    "uclu": [{"kupon": "Milan, Inter, Napoli", "oran": 7.20}],
-    "banko": [{"mac": "Real Madrid - Getafe", "tahmin": "MS 1", "oran": 1.45}],
-    "kazananlar": [{"mac": "Barcelona - Sevilla", "tahmin": "2.5 Üst (Kazandı)", "oran": 1.60}],
-    "kaybedenler": [{"mac": "Chelsea - Everton", "tahmin": "KG Var (Kaybetti)", "oran": 1.70}]
+    "tabs": {
+        "TEKLİ": [{"mac": "Galatasaray - Fenerbahçe", "tahmin": "MS 1", "oran": 1.95}],
+        "İKİLİ": [{"kupon": "Arsenal - Liverpool & Bayern - Dortmund", "oran": 3.45}],
+        "ÜÇLÜ": [{"kupon": "Milan - Inter - Napoli", "oran": 7.20}],
+        "BANKO": [{"mac": "Real Madrid - Getafe", "tahmin": "MS 1", "oran": 1.45}],
+        "KAZANANLAR": [{"mac": "Barcelona - Sevilla", "tahmin": "2.5 Üst", "oran": 1.60}],
+        "KAYBEDENLER": [{"mac": "Chelsea - Everton", "tahmin": "KG Var", "oran": 1.70}]
+    }
 }
 
 @app.route('/')
 def index():
-    html = """
+    return render_template_string("""
     <!DOCTYPE html>
     <html lang="tr">
     <head>
         <meta charset="UTF-8">
+        <title>BET-YEŞİL // Premium Analiz</title>
         <style>
-            :root { --yesil: #065f46; --acik-yesil: #10b981; }
-            body { font-family: 'Segoe UI', sans-serif; background: #f0fdf4; margin: 0; }
-            .header { background: var(--yesil); color: white; padding: 20px; text-align: center; }
-            .tabs { display: flex; gap: 5px; background: #064e3b; padding: 10px; overflow-x: auto; }
-            .tab-btn { color: white; padding: 10px 15px; cursor: pointer; border: none; background: none; font-weight: bold; }
-            .tab-btn:hover { background: var(--acik-yesil); }
-            .content { padding: 20px; max-width: 800px; margin: auto; }
-            .card { background: white; padding: 15px; border-radius: 8px; border-left: 5px solid var(--acik-yesil); margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-            .oran { color: var(--yesil); font-weight: bold; float: right; }
+            body { font-family: 'Segoe UI', sans-serif; background: #f0fdf4; margin: 0; color: #333; }
+            .header { background: #065f46; color: white; padding: 25px; text-align: center; }
+            .tabs-container { display: flex; justify-content: center; gap: 10px; background: #064e3b; padding: 15px; }
+            .tab-btn { background: #059669; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; font-weight: bold; }
+            .tab-btn:hover { background: #10b981; }
+            .content-box { max-width: 800px; margin: 20px auto; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+            .card { border-bottom: 1px solid #eee; padding: 15px 0; display: flex; justify-content: space-between; }
+            .oran { background: #065f46; color: white; padding: 5px 12px; border-radius: 4px; font-weight: bold; }
+            .hidden { display: none; }
         </style>
     </head>
     <body>
-        <div class="header"><h1>BET-YEŞİL // {{ data.tarih }} Günlük Tahminler</h1></div>
-        <div class="tabs">
-            <button class="tab-btn">TEKLİ</button>
-            <button class="tab-btn">2'Lİ</button>
-            <button class="tab-btn">3'LÜ</button>
-            <button class="tab-btn">BANKO</button>
-            <button class="tab-btn" style="color:#f87171">KAYBEDENLER</button>
-            <button class="tab-btn" style="color:#fbbf24">KAZANANLAR</button>
-        </div>
-        <div class="content">
-            <h3>Günün Tekli Tahminleri</h3>
-            {% for item in data.tekli %}
-            <div class="card">{{ item.mac }} | {{ item.tahmin }} <span class="oran">Oran: {{ item.oran }}</span></div>
+        <div class="header"><h1>BET-YEŞİL // {{ data.tarih }}</h1></div>
+        <div class="tabs-container">
+            {% for tab in data.tabs.keys() %}
+            <button class="tab-btn" onclick="showTab('{{ tab }}')">{{ tab }}</button>
             {% endfor %}
-            <!-- Diğer sekmeler buraya dinamik eklenebilir -->
         </div>
+        
+        <div id="content-area" class="content-box">
+            <h2 id="tab-title">Hoş Geldin! Bir kategori seç.</h2>
+            <div id="tab-data"></div>
+        </div>
+
+        <script>
+            const allData = {{ data.tabs | tojson }};
+            function showTab(tabName) {
+                document.getElementById('tab-title').innerText = tabName;
+                const container = document.getElementById('tab-data');
+                container.innerHTML = '';
+                allData[tabName].forEach(item => {
+                    container.innerHTML += `<div class="card">
+                        <span>${item.mac || item.kupon} - <b>${item.tahmin || ''}</b></span>
+                        <span class="oran">${item.oran}</span>
+                    </div>`;
+                });
+            }
+        </script>
     </body>
     </html>
-    """
-    return render_template_string(html, data=gunluk_veriler)
+    """, data=DATA)
 
 if __name__ == '__main__':
     app.run(debug=True)
