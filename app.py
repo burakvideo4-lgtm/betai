@@ -5,56 +5,64 @@ import random
 
 app = Flask(__name__)
 
-# ⚠️ API KEY BURAYA
-API_KEY = "BURAYA_API_KEYİNİ_YAPISTIR"
+# ⚠️ API KEY EKLENDİ
+API_KEY = "999e0bfd03e0268f0ad00d6619da543f"
 
 
-def predict_match():
-    home_strength = random.randint(40, 100)
-    away_strength = random.randint(40, 100)
+# -----------------------------
+# 🧠 PRO ORAN MOTORU
+# -----------------------------
+def predict():
+    h = random.randint(40, 100)
+    a = random.randint(40, 100)
 
-    total = home_strength + away_strength
+    total = h + a
 
-    home_win = home_strength / total
-    away_win = away_strength / total
-    draw = 1 - (home_win + away_win)
-
-    return home_win, draw, away_win
+    return {
+        "home": h / total,
+        "draw": random.uniform(0.15, 0.30),
+        "away": a / total
+    }
 
 
 def odds(p):
     if p <= 0:
         return 0
-    return round((1 / p) * 1.07, 2)
+    return round((1 / p) * 1.05, 2)
 
 
+# -----------------------------
+# 🧠 ANALİZ MOTORU
+# -----------------------------
 def analyze(home, away):
-    hw, dr, aw = predict_match()
+    p = predict()
 
-    if hw >= dr and hw >= aw:
-        winner = "HOME"
-        conf = hw
-    elif aw >= hw and aw >= dr:
-        winner = "AWAY"
-        conf = aw
-    else:
-        winner = "DRAW"
-        conf = dr
+    probs = {
+        "HOME": p["home"],
+        "DRAW": p["draw"],
+        "AWAY": p["away"]
+    }
+
+    winner = max(probs, key=probs.get)
+    confidence = probs[winner]
 
     return {
         "home": home,
         "away": away,
-        "home_p": round(hw * 100, 1),
-        "draw_p": round(dr * 100, 1),
-        "away_p": round(aw * 100, 1),
+        "home_p": round(p["home"] * 100, 1),
+        "draw_p": round(p["draw"] * 100, 1),
+        "away_p": round(p["away"] * 100, 1),
         "winner": winner,
-        "confidence": round(conf * 100, 1),
-        "home_odds": odds(hw),
-        "draw_odds": odds(dr),
-        "away_odds": odds(aw),
+        "confidence": round(confidence * 100, 1),
+        "home_odds": odds(p["home"]),
+        "draw_odds": odds(p["draw"]),
+        "away_odds": odds(p["away"])
     }
 
 
+# -----------------------------
+# 🌐 ANA SAYFA
+# -----------------------------
 @app.route("/")
 def home():
 
@@ -71,51 +79,74 @@ def home():
             timeout=10
         )
 
-        data = r.json()
-        matches = data.get("response", [])
+        data = r.json().get("response", [])
 
-        if not matches:
+        if not data:
             return "<h1>⚠️ Maç verisi yok</h1>"
 
-        analyzed = []
+        matches = []
 
-        for m in matches[:20]:
+        for m in data[:20]:
             try:
-                home = m["teams"]["home"]["name"]
-                away = m["teams"]["away"]["name"]
-                analyzed.append(analyze(home, away))
+                matches.append(analyze(
+                    m["teams"]["home"]["name"],
+                    m["teams"]["away"]["name"]
+                ))
             except:
                 continue
 
-        if not analyzed:
+        if not matches:
             return "<h1>⚠️ Analiz üretilemedi</h1>"
 
-        html = "<h1>⚽ BETAI SAĞLAM SİSTEM</h1><hr>"
+        # -----------------------------
+        # 📊 KUYON SİSTEMİ
+        # -----------------------------
+        single = matches[:10]
+        double = matches[:2]
+        triple = matches[:3]
+        quad = matches[:4]
 
-        def render(title, data):
+        high = sorted(matches, key=lambda x: x["confidence"], reverse=True)[:10]
+        winners = [m for m in matches if m["confidence"] > 60]
+        risky = [m for m in matches if m["confidence"] < 50]
+        top = max(matches, key=lambda x: x["confidence"])
+
+        # -----------------------------
+        # 🖥️ UI
+        # -----------------------------
+        html = """
+        <h1>⚽ BETAI PRO 3.0</h1>
+        <hr>
+        """
+
+        def box(title, arr):
             out = f"<h2>{title}</h2>"
-            for m in data:
+            for m in arr:
                 out += f"""
-                <div>
+                <div style="margin-bottom:15px;">
                     <b>{m['home']} vs {m['away']}</b><br>
                     📊 %{m['home_p']} | %{m['draw_p']} | %{m['away_p']}<br>
                     🎯 {m['winner']} (%{m['confidence']})<br>
                     💰 {m['home_odds']} / {m['draw_odds']} / {m['away_odds']}
-                </div><hr>
+                </div>
+                <hr>
                 """
             return out
 
-        html += render("🎯 Tekli", analyzed[:10])
-        html += render("🎯🎯 İkili", analyzed[:2])
-        html += render("🎯🎯🎯 Üçlü", analyzed[:3])
+        html += box("🎯 Tekli Kupon", single)
+        html += box("🎯🎯 İkili Kupon", double)
+        html += box("🎯🎯🎯 Üçlü Kupon", triple)
+        html += box("🎯🎯🎯🎯 Dörtlü Kupon", quad)
 
-        top = max(analyzed, key=lambda x: x["confidence"])
-        html += render("💣 En Güçlü", [top])
+        html += box("📈 Güçlü Maçlar", high)
+        html += box("🏆 Güvenli Tahminler", winners)
+        html += box("⚠️ Riskli Maçlar", risky)
+        html += box("💣 En Güçlü Maç", [top])
 
         return html
 
     except Exception as e:
-        return f"Hata: {e}"
+        return f"<h1>⚠️ Sistem Hatası</h1><p>{e}</p>"
 
 
 if __name__ == "__main__":
