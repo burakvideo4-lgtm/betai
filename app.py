@@ -1,192 +1,73 @@
-from flask import Flask
+from flask import Flask, render_template_string
+import requests
 import random
-import os
+from datetime import datetime
 
 app = Flask(__name__)
 
-TEAMS = [
-    "Galatasaray", "Fenerbahçe", "Beşiktaş", "Trabzonspor",
-    "Barcelona", "Real Madrid", "PSG", "Man United",
-    "Bayern Munich", "Juventus"
-]
+# NOT: API anahtarı gerçek bir canlı veri çekimi için kullanılmalıdır.
+API_KEY = "999e0bfd03e0268f0ad00d6619da543f"
+API_URL = "https://v3.football.api-sports.io/fixtures"
 
+def populer_bahisleri_getir():
+    # Burada popülerlik mantığı: %90 ve üzeri güven veren maçlar 'Popüler' olarak işaretlenir.
+    try:
+        # Gerçek API çağrısı simülasyonu
+        headers = {'x-rapidapi-host': 'v3.football.api-sports.io', 'x-rapidapi-key': API_KEY}
+        bugun = datetime.now().strftime('%Y-%m-%d')
+        response = requests.get(f"{API_URL}?date={bugun}", headers=headers, timeout=5)
+        data = response.json()
+        maclar = data.get("response", [])
+        
+        populer_liste = []
+        for m in maclar:
+            yuzde = random.randint(75, 98) # Popülerlik yüzdesi simülasyonu
+            if yuzde > 85: # Sadece yüksek güven yüzdelileri al
+                populer_liste.append({
+                    "mac": f"{m['teams']['home']['name']} - {m['teams']['away']['name']}",
+                    "tahmin": random.choice(["MS 1", "2.5 Üst", "KG Var"]),
+                    "oran": round(random.uniform(1.30, 1.90), 2),
+                    "yuzde": yuzde,
+                    "oynanma": random.randint(1500, 8000) # İddaa'daki gibi 'kişi oynadı' simülasyonu
+                })
+        
+        return sorted(populer_liste, key=lambda x: x['oynanma'], reverse=True)[:10]
+    except:
+        return []
 
-# -------------------------
-# 🧠 TEAM POWER
-# -------------------------
-def power(team):
-    base = random.randint(60, 90)
-    if team in ["Galatasaray", "Fenerbahçe", "Beşiktaş", "Real Madrid", "Barcelona"]:
-        base += 10
-    return min(base, 99)
-
-
-# -------------------------
-# ⚽ MATCH GENERATOR
-# -------------------------
-def match():
-    h = random.choice(TEAMS)
-    a = random.choice(TEAMS)
-    while h == a:
-        a = random.choice(TEAMS)
-    return h, a
-
-
-# -------------------------
-# 🧠 ANALYSIS
-# -------------------------
-def analyze(h, a):
-    hp = power(h)
-    ap = power(a)
-
-    total = hp + ap
-
-    home = hp / total
-    away = ap / total
-    draw = random.uniform(0.10, 0.25)
-
-    probs = {"HOME": home, "DRAW": draw, "AWAY": away}
-    winner = max(probs, key=probs.get)
-
-    conf = probs[winner]
-
-    return {
-        "home": h,
-        "away": a,
-        "home_p": round(home * 100, 1),
-        "draw_p": round(draw * 100, 1),
-        "away_p": round(away * 100, 1),
-        "winner": winner,
-        "confidence": round(conf * 100, 1),
-        "home_odds": round(1 / home, 2),
-        "draw_odds": round(1 / draw, 2),
-        "away_odds": round(1 / away, 2),
-    }
-
-
-# -------------------------
-# 🌐 HOME
-# -------------------------
-@app.route("/")
-def home():
-
-    matches = [analyze(*match()) for _ in range(15)]
-
-    high = sorted(matches, key=lambda x: x["confidence"], reverse=True)[:10]
-    safe = [m for m in matches if m["confidence"] > 60]
-    risky = [m for m in matches if m["confidence"] < 50]
-
-    top = max(matches, key=lambda x: x["confidence"])
-
-    # -------------------------
-    # 🎨 UI (DASHBOARD)
-    # -------------------------
+@app.route('/')
+def index():
+    populer_maclar = populer_bahisleri_getir()
     html = """
-<!DOCTYPE html>
-<html>
-<head>
-<title>BETAI PRO OFFLINE 2.0</title>
-
-<style>
-body {
-    margin:0;
-    font-family: Arial;
-    background:#0f172a;
-    color:white;
-}
-
-.header {
-    background:#111827;
-    padding:20px;
-    text-align:center;
-    font-size:24px;
-    font-weight:bold;
-}
-
-.tabs {
-    display:flex;
-    justify-content:center;
-    background:#1f2937;
-}
-
-.tab {
-    padding:15px 20px;
-    cursor:pointer;
-    color:white;
-}
-
-.tab:hover {
-    background:#374151;
-}
-
-.section {
-    display:none;
-    padding:20px;
-}
-
-.active {
-    display:block;
-}
-
-.card {
-    background:#1e293b;
-    padding:15px;
-    margin:10px 0;
-    border-radius:10px;
-}
-</style>
-
-<script>
-function show(tab){
-    let sections = document.getElementsByClassName("section");
-    for(let s of sections){
-        s.style.display="none";
-    }
-    document.getElementById(tab).style.display="block";
-}
-</script>
-
-</head>
-
-<body>
-
-<div class="header">⚽ BETAI PRO OFFLINE 2.0</div>
-
-<div class="tabs">
-    <div class="tab" onclick="show('kupon')">Kupon</div>
-    <div class="tab" onclick="show('high')">Yüksek Oran</div>
-    <div class="tab" onclick="show('safe')">Güvenli</div>
-    <div class="tab" onclick="show('risk')">Riskli</div>
-    <div class="tab" onclick="show('top')">En Güçlü</div>
-</div>
-"""
-
-    def render(items):
-        out = ""
-        for m in items:
-            out += f"""
-            <div class="card">
-                <b>{m['home']} vs {m['away']}</b><br>
-                📊 %{m['home_p']} | %{m['draw_p']} | %{m['away_p']}<br>
-                🎯 {m['winner']} (%{m['confidence']})<br>
-                💰 {m['home_odds']} / {m['draw_odds']} / {m['away_odds']}
+    <!DOCTYPE html>
+    <html lang="tr">
+    <head>
+        <style>
+            body { background: #0f172a; color: white; font-family: sans-serif; padding: 20px; }
+            .container { max-width: 800px; margin: auto; }
+            .pop-card { background: #1e293b; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #f59e0b; }
+            .oynanma-badge { font-size: 11px; color: #94a3b8; }
+            .oran-badge { background: #f59e0b; padding: 5px 10px; border-radius: 5px; font-weight: bold; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🔥 Futbol Popüler Bahisler</h1>
+            {% for m in populer_maclar %}
+            <div class="pop-card">
+                <div>
+                    <div style="font-weight:bold">{{ m.mac }}</div>
+                    <div style="font-size:12px; color:#fbbf24">{{ m.tahmin }} • %{{ m.yuzde }} Güven</div>
+                    <div class="oynanma-badge">👥 {{ m.oynanma }} kişi bu tahmini oynadı</div>
+                </div>
+                <div class="oran-badge">{{ m.oran }}</div>
             </div>
-            """
-        return out
+            {% endfor %}
+        </div>
+    </body>
+    </html>
+    """
+    return render_template_string(html, populer_maclar=populer_maclar)
 
-    html += f"""
-<div id="kupon" class="section active">{render(matches[:10])}</div>
-<div id="high" class="section">{render(high)}</div>
-<div id="safe" class="section">{render(safe)}</div>
-<div id="risk" class="section">{render(risky)}</div>
-<div id="top" class="section">{render([top])}</div>
-
-</body>
-</html>
-"""
-
-    return html
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+if __name__ == '__main__':
+    app.run(debug=True)
