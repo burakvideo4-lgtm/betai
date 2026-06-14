@@ -4,138 +4,186 @@ import os
 
 app = Flask(__name__)
 
-
-# -----------------------------
-# 🧠 TAKIM VERİSİ (SİMÜLASYON)
-# -----------------------------
 TEAMS = [
     "Galatasaray", "Fenerbahçe", "Beşiktaş", "Trabzonspor",
-    "Barcelona", "Real Madrid", "Man United", "PSG",
+    "Barcelona", "Real Madrid", "PSG", "Man United",
     "Bayern Munich", "Juventus"
 ]
 
 
-# -----------------------------
-# 🧠 GÜÇ SİSTEMİ
-# -----------------------------
-def team_power(team):
+# -------------------------
+# 🧠 TEAM POWER
+# -------------------------
+def power(team):
     base = random.randint(60, 90)
-
-    # büyük takımlar biraz avantajlı
     if team in ["Galatasaray", "Fenerbahçe", "Beşiktaş", "Real Madrid", "Barcelona"]:
         base += 10
-
     return min(base, 99)
 
 
-# -----------------------------
-# ⚽ MAÇ ÜRET
-# -----------------------------
-def generate_match():
-    home = random.choice(TEAMS)
-    away = random.choice(TEAMS)
-
-    while home == away:
-        away = random.choice(TEAMS)
-
-    return home, away
+# -------------------------
+# ⚽ MATCH GENERATOR
+# -------------------------
+def match():
+    h = random.choice(TEAMS)
+    a = random.choice(TEAMS)
+    while h == a:
+        a = random.choice(TEAMS)
+    return h, a
 
 
-# -----------------------------
-# 🧠 TAHMİN MOTORU
-# -----------------------------
-def predict(home, away):
+# -------------------------
+# 🧠 ANALYSIS
+# -------------------------
+def analyze(h, a):
+    hp = power(h)
+    ap = power(a)
 
-    h = team_power(home)
-    a = team_power(away)
+    total = hp + ap
 
-    total = h + a
+    home = hp / total
+    away = ap / total
+    draw = random.uniform(0.10, 0.25)
 
-    home_p = h / total
-    away_p = a / total
-    draw_p = random.uniform(0.10, 0.25)
-
-    probs = {
-        "HOME": home_p,
-        "DRAW": draw_p,
-        "AWAY": away_p
-    }
-
+    probs = {"HOME": home, "DRAW": draw, "AWAY": away}
     winner = max(probs, key=probs.get)
-    confidence = probs[winner]
+
+    conf = probs[winner]
 
     return {
-        "home": home,
-        "away": away,
-        "home_p": round(home_p * 100, 1),
-        "draw_p": round(draw_p * 100, 1),
-        "away_p": round(away_p * 100, 1),
+        "home": h,
+        "away": a,
+        "home_p": round(home * 100, 1),
+        "draw_p": round(draw * 100, 1),
+        "away_p": round(away * 100, 1),
         "winner": winner,
-        "confidence": round(confidence * 100, 1),
-        "home_odds": round(1 / home_p, 2),
-        "draw_odds": round(1 / draw_p, 2),
-        "away_odds": round(1 / away_p, 2),
+        "confidence": round(conf * 100, 1),
+        "home_odds": round(1 / home, 2),
+        "draw_odds": round(1 / draw, 2),
+        "away_odds": round(1 / away, 2),
     }
 
 
-# -----------------------------
-# 🌐 ANA SAYFA
-# -----------------------------
+# -------------------------
+# 🌐 HOME
+# -------------------------
 @app.route("/")
 def home():
 
-    matches = []
-
-    # 15 fake maç üret
-    for _ in range(15):
-        h, a = generate_match()
-        matches.append(predict(h, a))
-
-    # -------------------------
-    # 📊 KUYON SİSTEMİ
-    # -------------------------
-    single = matches[:10]
-    double = matches[:2]
-    triple = matches[:3]
-    quad = matches[:4]
+    matches = [analyze(*match()) for _ in range(15)]
 
     high = sorted(matches, key=lambda x: x["confidence"], reverse=True)[:10]
-    winners = [m for m in matches if m["confidence"] > 60]
+    safe = [m for m in matches if m["confidence"] > 60]
     risky = [m for m in matches if m["confidence"] < 50]
+
     top = max(matches, key=lambda x: x["confidence"])
 
     # -------------------------
-    # 🖥️ UI
+    # 🎨 UI (DASHBOARD)
     # -------------------------
     html = """
-    <h1>⚽ BETAI PRO OFFLINE</h1>
-    <p>API YOK - TAMAMEN OFFLINE MODEL</p>
-    <hr>
-    """
+<!DOCTYPE html>
+<html>
+<head>
+<title>BETAI PRO OFFLINE 2.0</title>
 
-    def box(title, arr):
-        out = f"<h2>{title}</h2>"
-        for m in arr:
+<style>
+body {
+    margin:0;
+    font-family: Arial;
+    background:#0f172a;
+    color:white;
+}
+
+.header {
+    background:#111827;
+    padding:20px;
+    text-align:center;
+    font-size:24px;
+    font-weight:bold;
+}
+
+.tabs {
+    display:flex;
+    justify-content:center;
+    background:#1f2937;
+}
+
+.tab {
+    padding:15px 20px;
+    cursor:pointer;
+    color:white;
+}
+
+.tab:hover {
+    background:#374151;
+}
+
+.section {
+    display:none;
+    padding:20px;
+}
+
+.active {
+    display:block;
+}
+
+.card {
+    background:#1e293b;
+    padding:15px;
+    margin:10px 0;
+    border-radius:10px;
+}
+</style>
+
+<script>
+function show(tab){
+    let sections = document.getElementsByClassName("section");
+    for(let s of sections){
+        s.style.display="none";
+    }
+    document.getElementById(tab).style.display="block";
+}
+</script>
+
+</head>
+
+<body>
+
+<div class="header">⚽ BETAI PRO OFFLINE 2.0</div>
+
+<div class="tabs">
+    <div class="tab" onclick="show('kupon')">Kupon</div>
+    <div class="tab" onclick="show('high')">Yüksek Oran</div>
+    <div class="tab" onclick="show('safe')">Güvenli</div>
+    <div class="tab" onclick="show('risk')">Riskli</div>
+    <div class="tab" onclick="show('top')">En Güçlü</div>
+</div>
+"""
+
+    def render(items):
+        out = ""
+        for m in items:
             out += f"""
-            <div style="margin-bottom:15px;">
+            <div class="card">
                 <b>{m['home']} vs {m['away']}</b><br>
                 📊 %{m['home_p']} | %{m['draw_p']} | %{m['away_p']}<br>
                 🎯 {m['winner']} (%{m['confidence']})<br>
                 💰 {m['home_odds']} / {m['draw_odds']} / {m['away_odds']}
             </div>
-            <hr>
             """
         return out
 
-    html += box("🎯 Tekli Kupon", single)
-    html += box("🎯🎯 İkili Kupon", double)
-    html += box("🎯🎯🎯 Üçlü Kupon", triple)
-    html += box("🎯🎯🎯🎯 Dörtlü Kupon", quad)
+    html += f"""
+<div id="kupon" class="section active">{render(matches[:10])}</div>
+<div id="high" class="section">{render(high)}</div>
+<div id="safe" class="section">{render(safe)}</div>
+<div id="risk" class="section">{render(risky)}</div>
+<div id="top" class="section">{render([top])}</div>
 
-    html += box("📈 Güçlü Maçlar", high)
-    html += box("🏆 Güvenli Tahminler", winners)
-    html += box("⚠️ Riskli Maçlar", risky)
-    html += box("💣 En Güçlü Maç", [top])
+</body>
+</html>
+"""
 
     return html
 
