@@ -1,19 +1,11 @@
 from flask import Flask
 import requests
 import os
-from datetime import datetime
 import random
 
 app = Flask(__name__)
 
 API_KEY = os.getenv("API_KEY")
-
-
-# ⚽ Basit tahmin sistemi
-def predict_score():
-    home_goals = random.choices([0, 1, 2, 3], weights=[20, 35, 30, 15])[0]
-    away_goals = random.choices([0, 1, 2, 3], weights=[25, 35, 25, 15])[0]
-    return home_goals, away_goals
 
 
 @app.route("/")
@@ -24,40 +16,38 @@ def home():
         "x-rapidapi-key": API_KEY
     }
 
-    today = datetime.now().strftime("%Y-%m-%d")
-
     try:
         response = requests.get(
             "https://v3.football.api-sports.io/fixtures",
             headers=headers,
-            params={"date": today},
+            params={"live": "all"},
             timeout=10
         )
 
         data = response.json()
         matches = data.get("response", [])
 
-        html = "<h1>⚽ BETAI</h1>"
+        html = "<h1>🔴 CANLI MAÇLAR - BETAI</h1>"
 
-        for match in matches[:15]:
+        if not matches:
+            return "<h1>Şu an canlı maç yok ⚽</h1>"
+
+        for match in matches:
 
             home = match["teams"]["home"]["name"]
             away = match["teams"]["away"]["name"]
 
-            # 🎯 tahmin
-            home_g, away_g = predict_score()
+            goals_home = match["goals"]["home"]
+            goals_away = match["goals"]["away"]
 
-            if home_g > away_g:
-                result = "🏠 Ev sahibi kazanır"
-            elif home_g < away_g:
-                result = "✈️ Deplasman kazanır"
-            else:
-                result = "🤝 Beraberlik"
+            minute = match["fixture"]["status"]["elapsed"]
+            status = match["fixture"]["status"]["short"]
 
             html += f"""
             <div style="margin-bottom:15px;">
-                <b>{home}</b> {home_g} - {away_g} <b>{away}</b><br>
-                <span>{result}</span>
+                <b>{home}</b> {goals_home} - {goals_away} <b>{away}</b><br>
+                ⏱️ Dakika: {minute} <br>
+                📊 Durum: {status}
             </div>
             <hr>
             """
