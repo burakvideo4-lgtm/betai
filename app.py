@@ -3,16 +3,16 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# Günlük Yönetim Paneli - Burayı güncellemen yeterli
+# Burayı her gün güncelleyip kaydedersen site otomatik güncellenir
 DATA = {
     "tarih": datetime.now().strftime('%d.%m.%Y'),
     "tabs": {
-        "TEKLİ": [{"mac": "Galatasaray - Fenerbahçe", "tahmin": "MS 1", "oran": 1.95}],
-        "İKİLİ": [{"kupon": "Arsenal - Liverpool & Bayern - Dortmund", "oran": 3.45}],
-        "ÜÇLÜ": [{"kupon": "Milan - Inter - Napoli", "oran": 7.20}],
-        "BANKO": [{"mac": "Real Madrid - Getafe", "tahmin": "MS 1", "oran": 1.45}],
-        "KAZANANLAR": [{"mac": "Barcelona - Sevilla", "tahmin": "2.5 Üst", "oran": 1.60}],
-        "KAYBEDENLER": [{"mac": "Chelsea - Everton", "tahmin": "KG Var", "oran": 1.70}]
+        "TEKLİ": [{"lig": "İngiltere - PL", "mac": "Arsenal - Liverpool", "tahmin": "MS 1", "oran": "1.95"}],
+        "İKİLİ": [{"lig": "İngiltere / Almanya", "mac": "Arsenal - Liverpool & Bayern - Dortmund", "tahmin": "MS 1 & Üst", "oran": "3.45"}],
+        "ÜÇLÜ": [{"lig": "İtalya Serisi A", "mac": "Milan - Inter - Napoli", "tahmin": "KG VAR", "oran": "7.20"}],
+        "BANKO": [{"lig": "İspanya - La Liga", "mac": "Real Madrid - Getafe", "tahmin": "MS 1", "oran": "1.45"}],
+        "KAZANANLAR": [{"lig": "Fransa - Ligue 1", "mac": "Barcelona - Sevilla", "tahmin": "2.5 Üst (KAZANDI)", "oran": "1.60"}],
+        "KAYBEDENLER": [{"lig": "İngiltere - PL", "mac": "Chelsea - Everton", "tahmin": "KG Var (KAYBETTİ)", "oran": "1.70"}]
     }
 }
 
@@ -26,14 +26,21 @@ def index():
         <title>BET-YEŞİL // Premium Analiz</title>
         <style>
             body { font-family: 'Segoe UI', sans-serif; background: #f0fdf4; margin: 0; color: #333; }
-            .header { background: #065f46; color: white; padding: 25px; text-align: center; }
-            .tabs-container { display: flex; justify-content: center; gap: 10px; background: #064e3b; padding: 15px; }
-            .tab-btn { background: #059669; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; font-weight: bold; }
+            .header { background: #065f46; color: white; padding: 25px; text-align: center; border-bottom: 5px solid #047857; }
+            .tabs-container { display: flex; justify-content: center; gap: 5px; background: #064e3b; padding: 10px; flex-wrap: wrap; }
+            .tab-btn { background: #059669; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px; font-weight: bold; font-size: 13px; }
             .tab-btn:hover { background: #10b981; }
-            .content-box { max-width: 800px; margin: 20px auto; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-            .card { border-bottom: 1px solid #eee; padding: 15px 0; display: flex; justify-content: space-between; }
-            .oran { background: #065f46; color: white; padding: 5px 12px; border-radius: 4px; font-weight: bold; }
-            .hidden { display: none; }
+            .content-box { max-width: 700px; margin: 20px auto; padding: 10px; }
+            .card { 
+                background: #ffffff; border: 1px solid #e5e7eb; border-left: 6px solid #065f46; 
+                border-radius: 8px; padding: 16px; margin-bottom: 12px; display: flex; 
+                justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }
+            .mac-detay { display: flex; flex-direction: column; gap: 4px; }
+            .lig-adi { font-size: 11px; color: #6b7280; text-transform: uppercase; font-weight: 700; }
+            .mac-isim { font-size: 14px; font-weight: 600; color: #111827; }
+            .tahmin-badge { background: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; width: fit-content; }
+            .oran-kutu { background: #065f46; color: white; padding: 10px 18px; border-radius: 6px; font-weight: 800; font-size: 16px; }
         </style>
     </head>
     <body>
@@ -45,7 +52,7 @@ def index():
         </div>
         
         <div id="content-area" class="content-box">
-            <h2 id="tab-title">Hoş Geldin! Bir kategori seç.</h2>
+            <h2 id="tab-title" style="text-align:center; color:#065f46;">Lütfen Bir Kategori Seçin</h2>
             <div id="tab-data"></div>
         </div>
 
@@ -56,9 +63,14 @@ def index():
                 const container = document.getElementById('tab-data');
                 container.innerHTML = '';
                 allData[tabName].forEach(item => {
-                    container.innerHTML += `<div class="card">
-                        <span>${item.mac || item.kupon} - <b>${item.tahmin || ''}</b></span>
-                        <span class="oran">${item.oran}</span>
+                    container.innerHTML += `
+                    <div class="card">
+                        <div class="mac-detay">
+                            <span class="lig-adi">${item.lig}</span>
+                            <span class="mac-isim">${item.mac}</span>
+                            <span class="tahmin-badge">TAHMİN: ${item.tahmin}</span>
+                        </div>
+                        <div class="oran-kutu">${item.oran}</div>
                     </div>`;
                 });
             }
